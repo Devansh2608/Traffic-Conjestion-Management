@@ -18,7 +18,20 @@ defaultRed = 150
 defaultYellow = 5
 defaultGreen = 20
 defaultMinimum = 10
-defaultMaximum = 60
+defaultMaximum = 30
+
+ambulances_lane1=[]
+ambulances_lane2=[]
+
+total_ambulances1 = 0
+total_ambulances2 = 0
+
+#defining priority
+car_priority=1
+bus_priority=1
+ambulance_priority=5
+bike_priority=1
+
 
 green_lane1= [defaultGreen]
 green_lane2= []
@@ -27,7 +40,8 @@ lane1 = []
 lane2 = []
 signals = []
 noOfSignals = 2
-simTime = 120  # change this to change time of simulation
+simTime = 120
+# change this to change time of simulation
 timeElapsed = 0
 
 
@@ -82,8 +96,8 @@ defaultStop = {'right': 580, 'down': 320}
 stops = {'right': [580, 580, 580], 'down': [320, 320, 320]}
 
 
-mid = {'right': {'x': 705, 'y': 445}, 'down': {'x': 695, 'y': 450}}
-rotationAngle = 3
+# mid = {'right': {'x': 705, 'y': 445}, 'down': {'x': 695, 'y': 450}}
+# rotationAngle = 3
 
 # Gap between vehicles
 gap = 15  # stopping gap
@@ -99,30 +113,43 @@ class TrafficSignal:
         self.yellow = yellow
         self.green = green
 
-        self.signalText = "30"
+        #self.signalText = "30"
         self.totalGreenTime = 0
 
 
 class Vehicle(pygame.sprite.Sprite):
+    #global total_ambulances1, total_ambulances2
     def __init__(self, lane, vehicleClass, direction_number, direction):
 
         pygame.sprite.Sprite.__init__(self)
+
         self.lane = lane
         self.vehicleClass = vehicleClass
+        #print(self.vehicleClass)
         self.speed = speeds[vehicleClass]
         self.direction_number = direction_number
         self.direction = direction
         self.x = x[direction][lane]
         self.y = y[direction][lane]
-        self.crossed = 0
 
+        # if (vehicleClass == 3):
+        #     if (direction_number==0):
+        #         total_ambulances1 += 1
+        #     else:
+        #         total_ambulances2+=1
+
+        self.crossed = 0
+        # pygame.sprite.Sprite.__init__(self)
         self.rotateAngle = 0
         vehicles[direction][lane].append(self)
         # self.stop = stops[direction][lane]
         self.index = len(vehicles[direction][lane]) - 1
         # path = "images/" + direction + "/" + vehicleClass + ".png"
         path = direction + "/" + vehicleClass + ".png"
-        self.originalImage = pygame.image.load(path)
+        # (Purpose: self.originalImage stores the original, unmodified image of the vehicle. This is the image as it was loaded from the file, with no transformations applied to it.
+        # Usage: This attribute is used to retain the base image that can be re-used or reset to its original state if needed. For example, if you want to change the vehicle’s image (e.g., for different states or animations), you can use this original image to set the self.currentImage back to its unaltered form.
+        # Why It Matters: Keeping the original image is useful when you need to apply transformations (like scaling, rotating, or color changes) to the self.currentImage but might need to revert to or reapply the original image for consistency or resets.)
+        # self.originalImage = pygame.image.load(path)
         self.currentImage = pygame.image.load(path)
 
         if (direction == 'right'):
@@ -153,11 +180,17 @@ class Vehicle(pygame.sprite.Sprite):
         screen.blit(self.currentImage, (self.x, self.y))
 
     def move(self):
+        global total_ambulances1,total_ambulances2
         if (self.direction == 'right'):
             if (self.crossed == 0 and self.x + self.currentImage.get_rect().width > stopLines[
                 self.direction]):  # if the image has crossed stop line now
                 self.crossed = 1
                 vehicles[self.direction]['crossed'] += 1
+                if(self.vehicleClass == 'ambulance'):
+                    total_ambulances1+=1
+                    #print(total_ambulances1)
+
+
 
 
             if ((self.x + self.currentImage.get_rect().width <= self.stop or self.crossed == 1 or (
@@ -175,6 +208,8 @@ class Vehicle(pygame.sprite.Sprite):
             if (self.crossed == 0 and self.y + self.currentImage.get_rect().height > stopLines[self.direction]):
                 self.crossed = 1
                 vehicles[self.direction]['crossed'] += 1
+                if(self.vehicleClass == 'ambulance'):
+                    total_ambulances2+=1
 
 
             if ((self.y + self.currentImage.get_rect().height <= self.stop or self.crossed == 1 or (
@@ -225,8 +260,8 @@ def setTime():
 
 
     #//////////////////////////
-    greenTime = math.ceil(((noOfCars * carTime) + (noOfambulances * ambulanceTime) + (noOfBuses * busTime) + (
-                noOfTrucks * truckTime) + (noOfBikes * bikeTime)) / (noOfLanes))
+    greenTime = math.ceil(((noOfCars * carTime * car_priority) + (noOfambulances * ambulanceTime * ambulance_priority) + (noOfBuses * busTime * bus_priority) + (
+                noOfTrucks * truckTime) + (noOfBikes * bikeTime * bike_priority)) / (noOfLanes))
 
     # Take product with priority
     # greenTime = math.ceil(((noOfCars * carTime) + (noOfambulances * ambulanceTime) + (noOfBuses * busTime) + (
@@ -276,9 +311,9 @@ def repeat():
     currentYellow = 0  # set yellow signal off
 
     # reset all signal times of current signal to default times
-    signals[currentGreen].green = defaultGreen
+    # signals[currentGreen].green = defaultGreen
     signals[currentGreen].yellow = defaultYellow
-    signals[currentGreen].red = defaultRed
+    # signals[currentGreen].red = defaultRed
 
     currentGreen = nextGreen  # set next signal as green signal
     nextGreen = (currentGreen + 1) % noOfSignals  # set next green signal
@@ -327,6 +362,8 @@ def updateValues():
 
 # Generating vehicles in the simulation
 def generateVehicles():
+    #global total_ambulances1, total_ambulances2
+
     while (True):
         vehicle_type = random.randint(0, 4)
         if (vehicle_type == 4):
@@ -348,13 +385,19 @@ def generateVehicles():
         # Vehicle(lane_number, vehicleTypes[vehicle_type], direction_number, directionNumbers[direction_number],
         #         will_turn)
 
+        # if(vehicle_type==3):
+        #     if(direction_number == 0):
+        #         total_ambulances1+=1
+        #     else:
+        #         total_ambulances2+=1
+
         Vehicle(lane_number, vehicleTypes[vehicle_type], direction_number, directionNumbers[direction_number])
 
         time.sleep(0.75)
 
 
 def simulationTime():
-    global timeElapsed, simTime
+    global timeElapsed, simTime, total_ambulances1, total_ambulances2
     while (True):
         timeElapsed += 1
         time.sleep(1)
@@ -367,8 +410,12 @@ def simulationTime():
                 if(vehicles[directionNumbers[i]]['crossed'] >0):
                     if(i==0):
                         lane1.append(vehicles[directionNumbers[i]]['crossed'])
+                        ambulances_lane1.append(total_ambulances1)
+                        #total_ambulances1 = 0
                     else:
                         lane2.append(vehicles[directionNumbers[i]]['crossed'])
+                        ambulances_lane2.append(total_ambulances2)
+
             #totalVehicles = 0
             print('Lane-wise Vehicle Counts')
             for i in lane1:
@@ -384,7 +431,7 @@ def simulationTime():
                 #totalVehicles += vehicles[directionNumbers[i]]['crossed']
             print('Vehicles passed in lane 1 :', lane1_vehicle_cnt)
             print('Vehicles passed in lane 2 :', lane2_vehicle_cnt)
-
+            #print('No of Ambulance passed in Lane 1 :', noOfambulances)
             print('Total vehicles passed: ', total_vehicles)
             print('Total time passed: ', timeElapsed)
             print('No. of vehicles passed per unit time: ', (float(total_vehicles) / float(timeElapsed)))
@@ -405,10 +452,20 @@ def simulationTime():
             print('Lane2 green time')
             print(green_lane2)
 
+
+            print('Ambulances passed in lane 1')
+            print(ambulances_lane1)
+
+            print('Ambulances passed in lane 2')
+            print(ambulances_lane2)
+
+
+
             os._exit(1)
 
 
 class Main:
+    global total_ambulances1, total_ambulances2
     thread4 = threading.Thread(name="simulationTime", target=simulationTime, args=())
     thread4.daemon = True
     thread4.start()
@@ -484,13 +541,21 @@ class Main:
                 if(i == 0):
                     if(vehicles[directionNumbers[i]]['crossed'] >0 ):
                         lane1.append(vehicles[directionNumbers[i]]['crossed'])
+                        ambulances_lane1.append(total_ambulances1)
+                        #total_ambulances1=0
                 else :
                     if (vehicles[directionNumbers[i]]['crossed'] > 0):
                         lane2.append(vehicles[directionNumbers[i]]['crossed'])
+                        ambulances_lane2.append(total_ambulances2)
+                        #total_ambulances2=0
 
                 #-------------------------------------------------------------------------
                 totalVehicles += vehicles[directionNumbers[i]]['crossed']
                 vehicles[directionNumbers[i]]['crossed'] = 0
+                if(i==0):
+                    total_ambulances1=0
+                else:
+                    total_ambulances2=0
 
             displayText = vehicles[directionNumbers[i]]['crossed']
 
