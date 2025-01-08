@@ -1,579 +1,821 @@
+SIMULATION_TIME = 3600
+
+PROBABILITY_DISTRIBUTION_ARRAY_OF_LANES = [25, 65, 80, 100]
+PROBABILITY_DISTRIBUTION_ARRAY_OF_VEHICLES= [20, 40, 65, 72, 100]
+
+PRESENT_GREEN = 0
+UPCOMING_GREEN = (PRESENT_GREEN + 1) % 4
+
+TRAVEL_SPEEDS = {'CAR_TYPE': [1.2, 1.25], 'BUS_TYPE': [1.1,1.16], 'TRUCK_TYPE': [1.1,1.16], 'AMBULANCE_TYPE': [1.2, 1.26],
+                 'BIKE_TYPE': [1.5, 2]}
+
+PRIORITY_CHANGE_RATE= {'CAR_TYPE': 0.1, 'BUS_TYPE': 0.2, 'TRUCK_TYPE': 0.18, 'AMBULANCE_TYPE': 1,
+                 'BIKE_TYPE': 0.03}
 
 
-# *** IMAGE XY COOD IS TOP LEFT
-import random
-import math
-import time
-import threading
-# from vehicle_detection import detection
+MINIMUM_DEFAULT_TIME = 8
+MAXIMUM_DEFAULT_TIME = 64
+
+PRIORITY_OF_AMBULANCE = 7
+PRIORITY_OF_BIKE = 0.5
+PRIORITY_OF_TRUCK = 1.2
+PRIORITY_OF_CAR = 0.8
+PRIORITY_OF_BUS = 1.2
+
 import pygame
 import sys
 import os
+import time
+import threading
+import random
 
 
+DEFAULT_YELLOW_SIGNAL_TIME = 5
+DEFAULT_GREEN_SIGNAL_TIME = 20
+DEFAULT_RED_SIGNAL_TIME = 150
 
-# Default values of signal times
+CURRENT_GREEN_SIGNAL_TIME = 0
 
-defaultRed = 150
-defaultYellow = 5
-defaultGreen = 20
-defaultMinimum = 10
-defaultMaximum = 30
+PREVIOUS_GREEN_SIGNAL_TIME = DEFAULT_GREEN_SIGNAL_TIME
 
-ambulances_lane1=[]
-ambulances_lane2=[]
+AMBULANCES_ROUTE_LANE1 = []
+AMBULANCES_ROUTE_LANE2 = []
+AMBULANCES_ROUTE_LANE3 = []
+AMBULANCES_ROUTE_LANE4 = []
 
-total_ambulances1 = 0
-total_ambulances2 = 0
+TOTAL_AMBULANCES1 = 0
+TOTAL_AMBULANCES2 = 0
+TOTAL_AMBULANCES3 = 0
+TOTAL_AMBULANCES4 = 0
 
-#defining priority
-car_priority=1
-bus_priority=1
-ambulance_priority=5
-bike_priority=1
+GREEN_ROUTE_LANE1 = [DEFAULT_GREEN_SIGNAL_TIME]
+GREEN_ROUTE_LANE2 = []
+GREEN_ROUTE_LANE3 = []
+GREEN_ROUTE_LANE4 = []
 
-
-green_lane1= [defaultGreen]
-green_lane2= []
-
-lane1 = []
-lane2 = []
-signals = []
-noOfSignals = 2
-simTime = 120
-# change this to change time of simulation
-timeElapsed = 0
+ROUTE_LANE1 = []
+ROUTE_LANE2 = []
+ROUTE_LANE3 = []
+ROUTE_LANE4 = []
+TRAFFIC_LIGHTS = []
 
 
-currentGreen = 0  # Indicates which signal is green
-# nextGreen = (currentGreen+1)%noOfSignals
-nextGreen = (currentGreen + 1) % 2
+TOTAL_NO_OF_SIGNALS = 4
 
-currentYellow = 0  # Indicates whether yellow signal is on or off
+ELAPSED_TIMER = 0
+PRESENT_YELLOW = 0
 
-# Average times for vehicles to pass the intersection
-carTime = 2
-bikeTime = 1
-ambulanceTime = 2.25
-busTime = 2.5
-truckTime = 2.5
+# Different Vehicles Count
+CAR_COUNT = 0
+BIKE_COUNT = 0
+BUS_COUNT = 0
+TRUCK_COUNT = 0
+AMBULANCE_COUNT = 0
 
-# Count of vehicles at a traffic signal
-noOfCars = 0
-noOfBikes = 0
-noOfBuses = 0
-noOfTrucks = 0
-noOfambulances = 0
-noOfLanes = 2
+VEHICLE_COUNT = 0
+ANGLE_OF_ROTATION = 3
 
-totalVehicles=0
+RED_SIGNAL_DETECTION_TIME = 5
 
-# Red signal time at which cars will be detected at a signal
-detectionTime = 5
+LIST_VEH = {'RS': {0: [], 1: [], 2: [], 'HAS_PASSED': 0}, 'DS': {0: [], 1: [], 2: [], 'HAS_PASSED': 0},
+            'LS': {0: [], 1: [], 2: [], 'HAS_PASSED': 0}, 'US': {0: [], 1: [], 2: [], 'HAS_PASSED': 0}}
+TYPE_VEH = {0: 'CAR_TYPE', 1: 'BUS_TYPE', 2: 'TRUCK_TYPE', 3: 'AMBULANCE_TYPE', 4: 'BIKE_TYPE'}
+PATH_TYPE = {0: 'RS', 1: 'DS', 2: 'LS', 3: 'US'}
 
-speeds = {'car': 2.25, 'bus': 1.8, 'truck': 1.8, 'ambulance': 2, 'bike': 2.25}  # average speeds of vehicles
-
-# Coordinates of start
-x = {'right': [0, 0, 0], 'down': [755, 727, 697]}
-y = {'right': [348, 370, 398], 'down': [0, 0, 0]}
-
-vehicles = {'right': {0: [], 1: [], 2: [], 'crossed': 0}, 'down': {0: [], 1: [], 2: [], 'crossed': 0},
-           'left': {0: [], 1: [], 2: [], 'crossed': 0}, 'up': {0: [], 1: [], 2: [], 'crossed': 0}}
-
-vehicleTypes = {0: 'car', 1: 'bus', 2: 'truck', 3: 'ambulance', 4: 'bike'}
-#directionNumbers = {0: 'right', 1: 'down', 2: 'left', 3: 'up'}
-directionNumbers = {0: 'right', 1: 'down'}
-
-# Coordinates of signal image, timer, and vehicle count
-signalCoods = [(530, 230), (810, 230)]
-signalTimerCoods = [(530, 210), (810, 210)]
-vehicleCountCoods = [(480, 210), (880, 210)]
-vehicleCountTexts = ["0", "0"]
+X_COORDINATE= {'RS': [1, 1, 1], 'DS': [754, 726, 698], 'LS': [1399, 1401, 1399], 'US': [601, 625, 658]}
+Y_COORDINATE = {'RS': [350, 369, 400], 'DS': [1, 1, 1], 'LS': [500, 468, 435], 'US': [799, 801, 799]}
 
 
-stopLines = {'right': 590, 'down': 330}
-defaultStop = {'right': 580, 'down': 320}
-stops = {'right': [580, 580, 580], 'down': [320, 320, 320]}
+COORDINATES_OF_SIGNAL = [(531, 231), (811, 231), (811, 571), (531, 571)]
+COORDINATES_OF_SIGNAL_TIMER = [(531, 211), (811, 211), (811, 551), (531, 551)]
+COORDINATES_OF_VEHICLE_COUNT = [(479, 209), (879, 209), (879, 549), (479, 549)]
+VEHICLE_COUNT_TEXTS = ["0", "0", "0", "0"]
 
+STOP_POSITION_LINES = {'RS': 589, 'DS': 329, 'LS': 799, 'US': 534}
+PRIMARY_STOP_POSITION = {'RS': 580, 'DS': 320, 'LS': 810, 'US': 545}
+STOP_COORDINATES = {'RS': [579, 579, 580], 'DS': [319, 321, 319], 'LS': [809, 809, 809], 'US': [544, 544, 546]}
 
-# mid = {'right': {'x': 705, 'y': 445}, 'down': {'x': 695, 'y': 450}}
-# rotationAngle = 3
+MID_POINT_COORDINATE = {'RS': {'X_COORDINATE': 703, 'Y_COORDINATE': 446}, 'DS': {'X_COORDINATE': 694, 'Y_COORDINATE': 451}, 'LS': {'X_COORDINATE': 693, 'Y_COORDINATE': 423},
+       'US': {'X_COORDINATE': 694, 'Y_COORDINATE': 399}}
+ANGLE_OF_ROTATION = 3
 
-# Gap between vehicles
-gap = 15  # stopping gap
-gap2 = 15  # moving gap
+GAPPING = 17
+GAPPING2 = 17  # moving GAPPING
 
 pygame.init()
-simulation = pygame.sprite.Group()
+TRAFFIC_OBJECTS = pygame.sprite.Group()
 
 
-class TrafficSignal:
-    def __init__(self, red, yellow, green, minimum, maximum):
-        self.red = red
-        self.yellow = yellow
-        self.green = green
+class INITIALIZE_VEH(pygame.sprite.Sprite):
+    def __init__(self, ROUTE_LANE, type_of_vehicle, dir_index, DIR_TYPE, is_Turning):
+
+        pygame.sprite.Sprite.__init__(self)
+        self.HAS_PASSED = 0
+        self.X_COORDINATE = X_COORDINATE[DIR_TYPE][ROUTE_LANE]
+        self.Y_COORDINATE = Y_COORDINATE[DIR_TYPE][ROUTE_LANE]
+        self.has_turned = 0
+        self.time= ELAPSED_TIMER
+        self.stop_position = -1
+        self.DIR_TYPE = DIR_TYPE
+        self.ROUTE_LANE = ROUTE_LANE
+        self.type_of_vehicle = type_of_vehicle
+        #print(self.type_of_vehicle)
+        probability= random.randint(0,100)
+        lower_speed= TRAVEL_SPEEDS[type_of_vehicle][0]
+        upper_speed= TRAVEL_SPEEDS[type_of_vehicle][1]
+        travel_speed= lower_speed + (upper_speed-lower_speed)* probability * 0.01
+        self.travel_speed = travel_speed
+        self.dir_index = dir_index
+
+        # pygame.sprite.Sprite.__init__(self)
+        self.VEH_ANGLE_OF_ROTATION = 0
+        self.shouldTurn = is_Turning
+        self.CHANGE_DIRECTION = 0
+        LIST_VEH[DIR_TYPE][ROUTE_LANE].append(self)
+
+        self.VEH_IND = len(LIST_VEH[DIR_TYPE][ROUTE_LANE]) - 1
+
+        IMG_ROUTE = DIR_TYPE + "/" + type_of_vehicle + ".png"
+
+        self.VEH_CURR_IMG = pygame.image.load(IMG_ROUTE)
+        self.VEH_IMG = pygame.image.load(IMG_ROUTE)
+
+        if (DIR_TYPE == 'DS'):
+            if (len(LIST_VEH[DIR_TYPE][ROUTE_LANE]) <= 1 or LIST_VEH[DIR_TYPE][ROUTE_LANE][
+                self.VEH_IND - 1].HAS_PASSED != 0):
+                self.stop_position = PRIMARY_STOP_POSITION[DIR_TYPE]
+
+            else:
+                self.stop_position = LIST_VEH[DIR_TYPE][ROUTE_LANE][self.VEH_IND - 1].stop_position - \
+                                     LIST_VEH[DIR_TYPE][ROUTE_LANE][
+                                         self.VEH_IND - 1].VEH_CURR_IMG.get_rect().height - GAPPING
+            dummy = self.VEH_CURR_IMG.get_rect().height + GAPPING
+            Y_COORDINATE[DIR_TYPE][ROUTE_LANE] -= dummy
+            STOP_COORDINATES[DIR_TYPE][ROUTE_LANE] -= dummy
+
+
+        elif (DIR_TYPE == 'US'):
+            if (len(LIST_VEH[DIR_TYPE][ROUTE_LANE]) <= 1 or LIST_VEH[DIR_TYPE][ROUTE_LANE][
+                self.VEH_IND - 1].HAS_PASSED != 0):
+                self.stop_position = PRIMARY_STOP_POSITION[DIR_TYPE]
+            else:
+                self.stop_position = LIST_VEH[DIR_TYPE][ROUTE_LANE][self.VEH_IND - 1].stop_position + \
+                                     LIST_VEH[DIR_TYPE][ROUTE_LANE][
+                                         self.VEH_IND - 1].VEH_CURR_IMG.get_rect().height + GAPPING
+            dummy = self.VEH_CURR_IMG.get_rect().height + GAPPING
+            Y_COORDINATE[DIR_TYPE][ROUTE_LANE] += dummy
+            STOP_COORDINATES[DIR_TYPE][ROUTE_LANE] += dummy
+
+
+        elif (DIR_TYPE == 'LS'):
+            if (len(LIST_VEH[DIR_TYPE][ROUTE_LANE]) <= 1 or LIST_VEH[DIR_TYPE][ROUTE_LANE][
+                self.VEH_IND - 1].HAS_PASSED != 0):
+                self.stop_position = PRIMARY_STOP_POSITION[DIR_TYPE]
+            else:
+                self.stop_position = LIST_VEH[DIR_TYPE][ROUTE_LANE][self.VEH_IND - 1].stop_position + \
+                                     LIST_VEH[DIR_TYPE][ROUTE_LANE][
+                                         self.VEH_IND - 1].VEH_CURR_IMG.get_rect().width + GAPPING
+
+            dummy = self.VEH_CURR_IMG.get_rect().width + GAPPING
+            X_COORDINATE[DIR_TYPE][ROUTE_LANE] += dummy
+            STOP_COORDINATES[DIR_TYPE][ROUTE_LANE] += dummy
+
+
+
+        elif (DIR_TYPE == 'RS'):
+            if (len(LIST_VEH[DIR_TYPE][ROUTE_LANE]) <= 1 or LIST_VEH[DIR_TYPE][ROUTE_LANE][
+                self.VEH_IND - 1].HAS_PASSED != 0):
+                self.stop_position = PRIMARY_STOP_POSITION[DIR_TYPE]
+            else:
+                self.stop_position = LIST_VEH[DIR_TYPE][ROUTE_LANE][self.VEH_IND - 1].stop_position - \
+                                     LIST_VEH[DIR_TYPE][ROUTE_LANE][
+                                         self.VEH_IND - 1].VEH_CURR_IMG.get_rect().width - GAPPING
+
+            # Set new starting and stop_positionping coordinate
+            dummy = GAPPING + self.VEH_CURR_IMG.get_rect().width
+            STOP_COORDINATES[DIR_TYPE][ROUTE_LANE] -= dummy
+            X_COORDINATE[DIR_TYPE][ROUTE_LANE] -= dummy
+
+        TRAFFIC_OBJECTS.add(self)
+
+    def vehicleMovement(self):
+        global TOTAL_AMBULANCES1, TOTAL_AMBULANCES2, TOTAL_AMBULANCES3, TOTAL_AMBULANCES4
+
+        ###############################################################################################################
+
+        if (self.DIR_TYPE == 'DS'):
+            if (self.Y_COORDINATE + self.VEH_CURR_IMG.get_rect().height > STOP_POSITION_LINES[
+                self.DIR_TYPE] and self.HAS_PASSED != 1):
+                self.HAS_PASSED = 1
+                LIST_VEH[self.DIR_TYPE]['HAS_PASSED'] += 1
+
+                if (self.type_of_vehicle == 'AMBULANCE_TYPE'):
+                    TOTAL_AMBULANCES2 += 1
+#/ /////////////////////mark
+            if (self.shouldTurn != 0):
+                if (self.HAS_PASSED != 1 or MID_POINT_COORDINATE[self.DIR_TYPE]['Y_COORDINATE'] > self.Y_COORDINATE + self.VEH_CURR_IMG.get_rect().height ):
+#////////////////////////////////////////////
+                    if (( self.stop_position >= self.Y_COORDINATE + self.VEH_CURR_IMG.get_rect().height or (
+                            PRESENT_GREEN == 1 and PRESENT_YELLOW == 0) or self.HAS_PASSED == 1) and (
+                            self.VEH_IND == 0 or self.Y_COORDINATE + self.VEH_CURR_IMG.get_rect().height < (
+                            LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][self.VEH_IND - 1].Y_COORDINATE - GAPPING2) or
+                            LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][self.VEH_IND - 1].CHANGE_DIRECTION != 0)):
+                        self.Y_COORDINATE += self.travel_speed
+
+                else:
+
+                    if (self.CHANGE_DIRECTION != 1):
+                        self.VEH_CURR_IMG = pygame.transform.rotate(self.VEH_IMG, -self.VEH_ANGLE_OF_ROTATION)
+                        self.X_COORDINATE -= 2.49
+                        self.Y_COORDINATE += 1.99
+                        self.VEH_ANGLE_OF_ROTATION += ANGLE_OF_ROTATION
+
+                        if (self.VEH_ANGLE_OF_ROTATION == 90):
+                            self.CHANGE_DIRECTION = 1
+
+                    else:
+
+                        if (self.VEH_IND == 0 or self.X_COORDINATE > (LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][self.VEH_IND - 1].X_COORDINATE +
+                                                         LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][
+                                                             self.VEH_IND - 1].VEH_CURR_IMG.get_rect().width + GAPPING2) or self.Y_COORDINATE < (
+                                LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][self.VEH_IND - 1].Y_COORDINATE - GAPPING2)):
+                            self.X_COORDINATE -= self.travel_speed
+
+            else:
+
+                if ((self.HAS_PASSED != 0 or self.stop_position >= self.Y_COORDINATE + self.VEH_CURR_IMG.get_rect().height    or (
+                        PRESENT_GREEN == 1 and PRESENT_YELLOW == 0)) and (
+                        self.VEH_IND == 0 or self.Y_COORDINATE + self.VEH_CURR_IMG.get_rect().height < (
+                        LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][self.VEH_IND - 1].Y_COORDINATE - GAPPING2) or (
+                                LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][self.VEH_IND - 1].CHANGE_DIRECTION != 0))):
+                    self.Y_COORDINATE += self.travel_speed
+
+            ####################################################################################
+        elif (self.DIR_TYPE == 'RS'):
+            if (self.HAS_PASSED != 1 and self.X_COORDINATE + self.VEH_CURR_IMG.get_rect().width > STOP_POSITION_LINES[
+                self.DIR_TYPE]):  # if the image has HAS_PASSED stop_position line now
+                self.HAS_PASSED = 1
+                LIST_VEH[self.DIR_TYPE]['HAS_PASSED'] += 1
+                if (self.type_of_vehicle == 'AMBULANCE_TYPE'):
+                    TOTAL_AMBULANCES1 += 1
+            if (self.shouldTurn != 0):
+                if (self.HAS_PASSED != 1 or self.X_COORDINATE + self.VEH_CURR_IMG.get_rect().width < MID_POINT_COORDINATE[self.DIR_TYPE]['X_COORDINATE']):
+                    if ((self.X_COORDINATE + self.VEH_CURR_IMG.get_rect().width <= self.stop_position or (
+                            PRESENT_GREEN == 0 and PRESENT_YELLOW == 0) or self.HAS_PASSED != 0) and (
+                            self.VEH_IND == 0 or self.X_COORDINATE + self.VEH_CURR_IMG.get_rect().width < (
+                            LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][self.VEH_IND - 1].X_COORDINATE - GAPPING2) or
+                            LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][self.VEH_IND - 1].CHANGE_DIRECTION != 0)):
+                        self.X_COORDINATE += self.travel_speed
+                else:
+                    if (self.CHANGE_DIRECTION != 1):
+                        self.VEH_ANGLE_OF_ROTATION += ANGLE_OF_ROTATION
+                        self.VEH_CURR_IMG = pygame.transform.rotate(self.VEH_IMG, -self.VEH_ANGLE_OF_ROTATION)
+                        self.X_COORDINATE += 1.99
+                        self.Y_COORDINATE += 1.79
+                        if (self.VEH_ANGLE_OF_ROTATION == 90):
+                            self.CHANGE_DIRECTION = 1
+                    else:
+                        if (self.VEH_IND == 0 or self.Y_COORDINATE + self.VEH_CURR_IMG.get_rect().height < (
+                                LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][
+                                    self.VEH_IND - 1].Y_COORDINATE - GAPPING2) or self.X_COORDINATE + self.VEH_CURR_IMG.get_rect().width < (
+                                LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][self.VEH_IND - 1].X_COORDINATE - GAPPING2)):
+                            self.Y_COORDINATE += self.travel_speed
+            else:
+                if ((self.X_COORDINATE + self.VEH_CURR_IMG.get_rect().width <= self.stop_position or self.HAS_PASSED != 0 or (
+                        PRESENT_GREEN == 0 and PRESENT_YELLOW == 0)) and (
+                        self.VEH_IND == 0 or self.X_COORDINATE + self.VEH_CURR_IMG.get_rect().width < (
+                        LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][self.VEH_IND - 1].X_COORDINATE - GAPPING2) or (
+                                LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][self.VEH_IND - 1].CHANGE_DIRECTION != 0))):
+                    # (if the image has not reached its stop_position coordinate or has HAS_PASSED stop_position line or has green signal) and (it is either the first vehicle in that ROUTE_LANE or it is has enough GAPPING to the next vehicle in that ROUTE_LANE)
+                    self.X_COORDINATE += self.travel_speed  # vehicleMovement the vehicle
+
+        # ////////////////////
+
+        ###########################################
+
+        elif (self.DIR_TYPE == 'US'):
+            if (self.HAS_PASSED != 1 and STOP_POSITION_LINES[self.DIR_TYPE] > self.Y_COORDINATE ):
+                self.HAS_PASSED = 1
+                LIST_VEH[self.DIR_TYPE]['HAS_PASSED'] += 1
+                if (self.type_of_vehicle == 'AMBULANCE_TYPE'):
+                    TOTAL_AMBULANCES4 += 1
+            if (self.shouldTurn != 0):
+
+                if (self.HAS_PASSED != 1 or MID_POINT_COORDINATE[self.DIR_TYPE]['Y_COORDINATE'] < self.Y_COORDINATE  ):
+                    if ((self.Y_COORDINATE >= self.stop_position or (
+                            PRESENT_GREEN == 3 and PRESENT_YELLOW == 0) or self.HAS_PASSED != 0) and (
+                            self.VEH_IND == 0 or self.Y_COORDINATE > (
+                            LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][self.VEH_IND - 1].Y_COORDINATE +
+                            LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][
+                                self.VEH_IND - 1].VEH_CURR_IMG.get_rect().height + GAPPING2) or
+                            LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][
+                                self.VEH_IND - 1].CHANGE_DIRECTION != 0)):
+                        self.Y_COORDINATE -= self.travel_speed
+                else:
+                    if (self.CHANGE_DIRECTION != 1):
+
+                        self.X_COORDINATE += 1
+                        self.Y_COORDINATE -= 1
+                        self.VEH_ANGLE_OF_ROTATION += ANGLE_OF_ROTATION
+                        self.VEH_CURR_IMG = pygame.transform.rotate(self.VEH_IMG, -self.VEH_ANGLE_OF_ROTATION)
+                        if (self.VEH_ANGLE_OF_ROTATION == 90):
+                            self.CHANGE_DIRECTION = 1
+                    else:
+                        if (self.VEH_IND == 0 or self.X_COORDINATE < (LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][self.VEH_IND - 1].X_COORDINATE -
+                                                         LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][
+                                                             self.VEH_IND - 1].VEH_CURR_IMG.get_rect().width - GAPPING2) or self.Y_COORDINATE > (
+                                LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][self.VEH_IND - 1].Y_COORDINATE + GAPPING2)):
+                            self.X_COORDINATE += self.travel_speed
+            else:
+                if ((self.HAS_PASSED != 0 or self.Y_COORDINATE >= self.stop_position  or (
+                        PRESENT_GREEN == 3 and PRESENT_YELLOW == 0)) and (
+                        self.VEH_IND == 0 or self.Y_COORDINATE > (
+                        LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][self.VEH_IND - 1].Y_COORDINATE +
+                        LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][
+                            self.VEH_IND - 1].VEH_CURR_IMG.get_rect().height + GAPPING2) or (
+                                LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][self.VEH_IND - 1].CHANGE_DIRECTION != 0))):
+                    self.Y_COORDINATE -= self.travel_speed
+
+        #         //
+        elif (self.DIR_TYPE == 'LS'):
+            if (self.HAS_PASSED != 1 and self.X_COORDINATE < STOP_POSITION_LINES[self.DIR_TYPE]):
+                self.HAS_PASSED = 1
+                LIST_VEH[self.DIR_TYPE]['HAS_PASSED'] += 1
+                if (self.type_of_vehicle == 'AMBULANCE_TYPE'):
+                    TOTAL_AMBULANCES3 += 1
+
+            if (self.shouldTurn != 0):
+                if (self.HAS_PASSED != 1 or self.X_COORDINATE > MID_POINT_COORDINATE[self.DIR_TYPE]['X_COORDINATE']):
+                    if ((self.X_COORDINATE >= self.stop_position or (
+                            PRESENT_GREEN == 2 and PRESENT_YELLOW == 0) or self.HAS_PASSED != 0) and (
+                            self.VEH_IND == 0 or self.X_COORDINATE > (
+                            LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][self.VEH_IND - 1].X_COORDINATE +
+                            LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][
+                                self.VEH_IND - 1].VEH_CURR_IMG.get_rect().width + GAPPING2) or
+                            LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][
+                                self.VEH_IND - 1].CHANGE_DIRECTION != 0)):
+                        self.X_COORDINATE -= self.travel_speed
+                else:
+                    if (self.CHANGE_DIRECTION != 1):
+                        self.VEH_ANGLE_OF_ROTATION += ANGLE_OF_ROTATION
+                        self.VEH_CURR_IMG = pygame.transform.rotate(self.VEH_IMG, -self.VEH_ANGLE_OF_ROTATION)
+                        self.X_COORDINATE -= 1.79
+                        self.Y_COORDINATE -= 2.49
+                        if (self.VEH_ANGLE_OF_ROTATION == 90):
+                            self.CHANGE_DIRECTION = 1
+                    else:
+                        if (self.VEH_IND == 0 or self.Y_COORDINATE > (LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][self.VEH_IND - 1].Y_COORDINATE +
+                                                         LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][
+                                                             self.VEH_IND - 1].VEH_CURR_IMG.get_rect().height + GAPPING2) or self.X_COORDINATE > (
+                                LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][self.VEH_IND - 1].X_COORDINATE + GAPPING2)):
+                            self.Y_COORDINATE -= self.travel_speed
+            else:
+                if ((self.X_COORDINATE >= self.stop_position or self.HAS_PASSED != 0 or (
+                        PRESENT_GREEN == 2 and PRESENT_YELLOW == 0)) and (
+                        self.VEH_IND == 0 or self.X_COORDINATE > (
+                        LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][self.VEH_IND - 1].X_COORDINATE +
+                        LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][
+                            self.VEH_IND - 1].VEH_CURR_IMG.get_rect().width + GAPPING2) or (
+                                LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][self.VEH_IND - 1].CHANGE_DIRECTION == 1))):
+                    # (if the image has not reached its stop_position coordinate or has HAS_PASSED stop_position line or has green signal) and (it is either the first vehicle in that ROUTE_LANE or it is has enough GAPPING to the next vehicle in that ROUTE_LANE)
+                    self.X_COORDINATE -= self.travel_speed  # vehicleMovement the vehicle
+            # if((self.x>=self.stop_position or self.HAS_PASSED == 1 or (PRESENT_GREEN==2 and PRESENT_YELLOW==0)) and (self.VEH_IND==0 or self.x>(LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][self.VEH_IND-1].x + LIST_VEH[self.DIR_TYPE][self.ROUTE_LANE][self.VEH_IND-1].VEH_CURR_IMG.get_rect().width + GAPPING2))):
+            #     self.x -= self.travel_speed
+
+
+# #########################################################################
+
+class SIGNAL_LIGHT:
+    def __init__(self, SIGNAL_RED_LIGHT, SIGNAL_YELLOW_LIGHT, SIGNAL_GREEN_LIGHT):
+        self.SIGNAL_RED_LIGHT = SIGNAL_RED_LIGHT
+        self.SIGNAL_YELLOW_LIGHT = SIGNAL_YELLOW_LIGHT
+        self.SIGNAL_GREEN_LIGHT = SIGNAL_GREEN_LIGHT
 
         #self.signalText = "30"
         self.totalGreenTime = 0
 
 
-class Vehicle(pygame.sprite.Sprite):
-    #global total_ambulances1, total_ambulances2
-    def __init__(self, lane, vehicleClass, direction_number, direction):
-
-        pygame.sprite.Sprite.__init__(self)
-
-        self.lane = lane
-        self.vehicleClass = vehicleClass
-        #print(self.vehicleClass)
-        self.speed = speeds[vehicleClass]
-        self.direction_number = direction_number
-        self.direction = direction
-        self.x = x[direction][lane]
-        self.y = y[direction][lane]
-
-        # if (vehicleClass == 3):
-        #     if (direction_number==0):
-        #         total_ambulances1 += 1
-        #     else:
-        #         total_ambulances2+=1
-
-        self.crossed = 0
-        # pygame.sprite.Sprite.__init__(self)
-        self.rotateAngle = 0
-        vehicles[direction][lane].append(self)
-        # self.stop = stops[direction][lane]
-        self.index = len(vehicles[direction][lane]) - 1
-        # path = "images/" + direction + "/" + vehicleClass + ".png"
-        path = direction + "/" + vehicleClass + ".png"
-        # (Purpose: self.originalImage stores the original, unmodified image of the vehicle. This is the image as it was loaded from the file, with no transformations applied to it.
-        # Usage: This attribute is used to retain the base image that can be re-used or reset to its original state if needed. For example, if you want to change the vehicle’s image (e.g., for different states or animations), you can use this original image to set the self.currentImage back to its unaltered form.
-        # Why It Matters: Keeping the original image is useful when you need to apply transformations (like scaling, rotating, or color changes) to the self.currentImage but might need to revert to or reapply the original image for consistency or resets.)
-        # self.originalImage = pygame.image.load(path)
-        self.currentImage = pygame.image.load(path)
-
-        if (direction == 'right'):
-            if (len(vehicles[direction][lane]) > 1 and vehicles[direction][lane][
-                self.index - 1].crossed == 0):  # if more than 1 vehicle in the lane of vehicle before it has crossed stop line
-                self.stop = vehicles[direction][lane][self.index - 1].stop - vehicles[direction][lane][
-                    self.index - 1].currentImage.get_rect().width - gap  # setting stop coordinate as: stop coordinate of next vehicle - width of next vehicle - gap
-            else:
-                self.stop = defaultStop[direction]
-            # Set new starting and stopping coordinate
-            temp = self.currentImage.get_rect().width + gap
-            x[direction][lane] -= temp
-            stops[direction][lane] -= temp
-
-        elif (direction == 'down'):
-            if (len(vehicles[direction][lane]) > 1 and vehicles[direction][lane][self.index - 1].crossed == 0):
-                self.stop = vehicles[direction][lane][self.index - 1].stop - vehicles[direction][lane][
-                    self.index - 1].currentImage.get_rect().height - gap
-            else:
-                self.stop = defaultStop[direction]
-            temp = self.currentImage.get_rect().height + gap
-            y[direction][lane] -= temp
-            stops[direction][lane] -= temp
-
-        simulation.add(self)
-
-    def render(self, screen):
-        screen.blit(self.currentImage, (self.x, self.y))
-
-    def move(self):
-        global total_ambulances1,total_ambulances2
-        if (self.direction == 'right'):
-            if (self.crossed == 0 and self.x + self.currentImage.get_rect().width > stopLines[
-                self.direction]):  # if the image has crossed stop line now
-                self.crossed = 1
-                vehicles[self.direction]['crossed'] += 1
-                if(self.vehicleClass == 'ambulance'):
-                    total_ambulances1+=1
-                    #print(total_ambulances1)
-
-
-
-
-            if ((self.x + self.currentImage.get_rect().width <= self.stop or self.crossed == 1 or (
-                        currentGreen == 0 and currentYellow == 0)) and (
-                        self.index == 0 or self.x + self.currentImage.get_rect().width < (
-                        # vehicles[self.direction][self.lane][self.index - 1].x - gap2) or (
-                        #         vehicles[self.direction][self.lane][self.index - 1].turned == 1))):
-                        vehicles[self.direction][self.lane][self.index - 1].x - gap2))):
-                    # (if the image has not reached its stop coordinate or has crossed stop line or has green signal) and (it is either the first vehicle in that lane or it is has enough gap to the next vehicle in that lane)
-                    self.x += self.speed  # move the vehicle
-
-
-
-        elif (self.direction == 'down'):
-            if (self.crossed == 0 and self.y + self.currentImage.get_rect().height > stopLines[self.direction]):
-                self.crossed = 1
-                vehicles[self.direction]['crossed'] += 1
-                if(self.vehicleClass == 'ambulance'):
-                    total_ambulances2+=1
-
-
-            if ((self.y + self.currentImage.get_rect().height <= self.stop or self.crossed == 1 or (
-                        currentGreen == 1 and currentYellow == 0)) and (
-                        # self.index == 0 or self.y + self.currentImage.get_rect().height < (
-                        # vehicles[self.direction][self.lane][self.index - 1].y - gap2) or (
-                        #         vehicles[self.direction][self.lane][self.index - 1].turned == 1))):
-                        self.index == 0 or self.y + self.currentImage.get_rect().height < (
-                        vehicles[self.direction][self.lane][self.index - 1].y - gap2))):
-                        self.y += self.speed
 
 # Initialization of signals with default values
-def initialize():
-    ts1 = TrafficSignal(0, defaultYellow, defaultGreen, defaultMinimum, defaultMaximum)
-    signals.append(ts1)
-    ts2 = TrafficSignal(ts1.red + ts1.yellow + ts1.green, defaultYellow, defaultGreen, defaultMinimum, defaultMaximum)
-    signals.append(ts2)
-
-    repeat()
+def trafficLightInitializer():
+    TRAFFIC_SIGNAL1 = SIGNAL_LIGHT(0, DEFAULT_YELLOW_SIGNAL_TIME, DEFAULT_GREEN_SIGNAL_TIME)
+    TRAFFIC_LIGHTS.append(TRAFFIC_SIGNAL1)
+    TRAFFIC_SIGNAL2 = SIGNAL_LIGHT(TRAFFIC_SIGNAL1.SIGNAL_RED_LIGHT + TRAFFIC_SIGNAL1.SIGNAL_YELLOW_LIGHT + TRAFFIC_SIGNAL1.SIGNAL_GREEN_LIGHT, DEFAULT_YELLOW_SIGNAL_TIME, DEFAULT_GREEN_SIGNAL_TIME)
+    TRAFFIC_LIGHTS.append(TRAFFIC_SIGNAL2)
+    TRAFFIC_SIGNAL3 = SIGNAL_LIGHT(DEFAULT_RED_SIGNAL_TIME, DEFAULT_YELLOW_SIGNAL_TIME, DEFAULT_GREEN_SIGNAL_TIME)
+    TRAFFIC_LIGHTS.append(TRAFFIC_SIGNAL3)
+    TRAFFIC_SIGNAL4 = SIGNAL_LIGHT(DEFAULT_RED_SIGNAL_TIME, DEFAULT_YELLOW_SIGNAL_TIME, DEFAULT_GREEN_SIGNAL_TIME)
+    TRAFFIC_LIGHTS.append(TRAFFIC_SIGNAL4)
+    recursor()
 
 
 # Set time according to formula
-def setTime():
-    global noOfCars, noOfBikes, noOfBuses, noOfTrucks, noOfambulances, noOfLanes
-    global carTime, busTime, truckTime, ambulanceTime, bikeTime
+def DYNAMIC_GREEN_TIME():
+    global CAR_COUNT, BIKE_COUNT, BUS_COUNT, TRUCK_COUNT, AMBULANCE_COUNT, noOfROUTE_LANEs
+    global PREVIOUS_GREEN_SIGNAL_TIME, CURRENT_GREEN_SIGNAL_TIME, THRESHOLD_PRIORITY
 
-    noOfCars, noOfBuses, noOfTrucks, noOfambulances, noOfBikes = 0, 0, 0, 0, 0
-    for j in range(len(vehicles[directionNumbers[nextGreen]][0])):
-        vehicle = vehicles[directionNumbers[nextGreen]][0][j]
-        if (vehicle.crossed == 0):
-            vclass = vehicle.vehicleClass
-            # print(vclass)
-            noOfBikes += 1
-    for i in range(1, 3):
-        for j in range(len(vehicles[directionNumbers[nextGreen]][i])):
-            vehicle = vehicles[directionNumbers[nextGreen]][i][j]
-            if (vehicle.crossed == 0):
-                vclass = vehicle.vehicleClass
-                # print(vclass)
-                if (vclass == 'car'):
-                    noOfCars += 1
-                elif (vclass == 'bus'):
-                    noOfBuses += 1
-                elif (vclass == 'truck'):
-                    noOfTrucks += 1
-                elif (vclass == 'ambulance'):
-                    noOfambulances += 1
+    CNT= [0, 0, 0]
 
+    CAR_COUNT, BUS_COUNT, TRUCK_COUNT, AMBULANCE_COUNT, BIKE_COUNT = 0, 0, 0, 0, 0
+    for bike_index in range(len(LIST_VEH[PATH_TYPE[UPCOMING_GREEN]][0])):
+        bike = LIST_VEH[PATH_TYPE[UPCOMING_GREEN]][0][bike_index]
 
-    #//////////////////////////
-    greenTime = math.ceil(((noOfCars * carTime * car_priority) + (noOfambulances * ambulanceTime * ambulance_priority) + (noOfBuses * busTime * bus_priority) + (
-                noOfTrucks * truckTime) + (noOfBikes * bikeTime * bike_priority)) / (noOfLanes))
+        if (bike.HAS_PASSED == 0):
+            CNT[0]+=1
 
-    # Take product with priority
-    # greenTime = math.ceil(((noOfCars * carTime) + (noOfambulances * ambulanceTime) + (noOfBuses * busTime) + (
-    #         noOfTrucks * truckTime) + (noOfBikes * bikeTime)) / (noOfLanes))
+    for semi_Lane in range(1, 3):
+        for veh in range(len(LIST_VEH[PATH_TYPE[UPCOMING_GREEN]][semi_Lane])):
+            vehicle = LIST_VEH[PATH_TYPE[UPCOMING_GREEN]][semi_Lane][veh]
+            if (vehicle.HAS_PASSED == 0):
+                CNT[semi_Lane]+=1
 
-    # /////////////////////////////////////
-    #greenTime= defaultGreen
-    # greenTime = math.ceil((noOfVehicles)/noOfLanes)
-    # greenTime=5
-    #///////////////////
-    #print('Green Time: ', greenTime)
-    if (greenTime < defaultMinimum):
-        greenTime = defaultMinimum
-    elif (greenTime > defaultMaximum):
-        greenTime = defaultMaximum
-    # greenTime = random.randint(15,50)
-    signals[(currentGreen + 1) % (noOfSignals)].green = greenTime
+    maxi= max(CNT[0], CNT[1], CNT[2])
+    greenTime = 3+ maxi
 
-    if (currentGreen == 1):
-        green_lane1.append(greenTime)
+    if (greenTime < MINIMUM_DEFAULT_TIME):
+        greenTime = MINIMUM_DEFAULT_TIME
+    elif (greenTime > MAXIMUM_DEFAULT_TIME):
+        greenTime = MAXIMUM_DEFAULT_TIME
+
+    TRAFFIC_LIGHTS[UPCOMING_GREEN % (TOTAL_NO_OF_SIGNALS)].SIGNAL_GREEN_LIGHT = greenTime
+
+    CAR_COUNT = 0
+    BUS_COUNT = 0
+    TRUCK_COUNT = 0
+    AMBULANCE_COUNT = 0
+    BIKE_COUNT = 0
+
+    if (UPCOMING_GREEN == 0):
+        GREEN_ROUTE_LANE1.append(greenTime)
+
+    elif (UPCOMING_GREEN == 1):
+        GREEN_ROUTE_LANE2.append(greenTime)
+
+    elif (UPCOMING_GREEN == 2):
+        GREEN_ROUTE_LANE3.append(greenTime)
+
     else:
-        green_lane2.append(greenTime)
+        GREEN_ROUTE_LANE4.append(greenTime)
+
+def calc_upcoming_green():
+    global UPCOMING_GREEN, PRESENT_GREEN, CAR_COUNT, BUS_COUNT, TRUCK_COUNT, AMBULANCE_COUNT, BIKE_COUNT
+
+    cp= 0
+    for i in range (0, 4):
+        dynamic_priority = 0
+
+        CAR_COUNT, BUS_COUNT, TRUCK_COUNT, AMBULANCE_COUNT, BIKE_COUNT = 0, 0, 0, 0, 0
+        t= ELAPSED_TIMER
+        for bike_index in range(len(LIST_VEH[PATH_TYPE[i]][0])):
+            bike = LIST_VEH[PATH_TYPE[i]][0][bike_index]
+            veh_time = bike.time
+            if (bike.HAS_PASSED == 0):
+                BIKE_COUNT += 1
+                dynamic_priority += (t-veh_time)*(PRIORITY_CHANGE_RATE['BIKE_TYPE'])
+        for semi_Lane in range(1, 3):
+            for veh in range(len(LIST_VEH[PATH_TYPE[i]][semi_Lane])):
+                vehicle = LIST_VEH[PATH_TYPE[i]][semi_Lane][veh]
+                if (vehicle.HAS_PASSED == 0):
+                    vehicle_class = vehicle.type_of_vehicle
+                    veh_time = vehicle.time
+                    if (vehicle_class == 'CAR_TYPE'):
+                        CAR_COUNT += 1
+                    elif (vehicle_class == 'BUS_TYPE'):
+                        BUS_COUNT += 1
+                    elif (vehicle_class == 'TRUCK_TYPE'):
+                        TRUCK_COUNT += 1
+                    elif (vehicle_class == 'AMBULANCE_TYPE'):
+                        AMBULANCE_COUNT += 1
+
+                    dynamic_priority+= (t-veh_time)*(PRIORITY_CHANGE_RATE[vehicle_class])
+
+        curr_priority = CAR_COUNT * PRIORITY_OF_CAR + BIKE_COUNT * PRIORITY_OF_BIKE + AMBULANCE_COUNT * PRIORITY_OF_AMBULANCE + TRUCK_COUNT * PRIORITY_OF_TRUCK + BUS_COUNT * PRIORITY_OF_BUS + dynamic_priority
+        if(curr_priority > cp and i!=PRESENT_GREEN):
+            cp= curr_priority
+            UPCOMING_GREEN= i
 
 
-def repeat():
-    global currentGreen, currentYellow, nextGreen
-    while (signals[currentGreen].green > 0):  # while the timer of current green signal is not zero
-        printStatus()
-        updateValues()
-        if (signals[(currentGreen + 1) % (noOfSignals)].red == detectionTime):  # set time of next green signal
-            thread = threading.Thread(name="detection", target=setTime, args=())
-            thread.daemon = True
-            thread.start()
-            # setTime()
+    CAR_COUNT, BUS_COUNT, TRUCK_COUNT, AMBULANCE_COUNT, BIKE_COUNT = 0, 0, 0, 0, 0
+
+def recursor():
+    global PRESENT_GREEN, PRESENT_YELLOW, UPCOMING_GREEN
+    while (TRAFFIC_LIGHTS[PRESENT_GREEN].SIGNAL_GREEN_LIGHT != 6):
+        updateTimerValues()
         time.sleep(1)
-    currentYellow = 1  # set yellow signal on
-    vehicleCountTexts[currentGreen] = "0"
-    # reset stop coordinates of lanes and vehicles
-    for i in range(0, 3):
-        stops[directionNumbers[currentGreen]][i] = defaultStop[directionNumbers[currentGreen]]
-        for vehicle in vehicles[directionNumbers[currentGreen]][i]:
-            vehicle.stop = defaultStop[directionNumbers[currentGreen]]
-    while (signals[currentGreen].yellow > 0):  # while the timer of current yellow signal is not zero
-        printStatus()
-        updateValues()
+
+
+    calc_upcoming_green()
+    TRAFFIC_LIGHTS[UPCOMING_GREEN].SIGNAL_RED_LIGHT = 5 + TRAFFIC_LIGHTS[PRESENT_GREEN].SIGNAL_GREEN_LIGHT
+    th = threading.Thread(name="detection", target=DYNAMIC_GREEN_TIME, args=())
+    th.daemon = True
+    th.start()
+
+    while (TRAFFIC_LIGHTS[PRESENT_GREEN].SIGNAL_GREEN_LIGHT != 0):
+        updateTimerValues()
         time.sleep(1)
-    currentYellow = 0  # set yellow signal off
 
-    # reset all signal times of current signal to default times
-    # signals[currentGreen].green = defaultGreen
-    signals[currentGreen].yellow = defaultYellow
-    # signals[currentGreen].red = defaultRed
+    PRESENT_YELLOW = 1  # set yellow signal on
+    VEHICLE_COUNT_TEXTS[PRESENT_GREEN] = "0"
+    # reset stop_position coordinates of ROUTE_LANEs and vehicles
+    for semi_lane in range(0, 3):
+        STOP_COORDINATES[PATH_TYPE[PRESENT_GREEN]][semi_lane] = PRIMARY_STOP_POSITION[PATH_TYPE[PRESENT_GREEN]]
+        for vehicle in LIST_VEH[PATH_TYPE[PRESENT_GREEN]][semi_lane]:
+            vehicle.stop_position = PRIMARY_STOP_POSITION[PATH_TYPE[PRESENT_GREEN]]
+    while (TRAFFIC_LIGHTS[PRESENT_GREEN].SIGNAL_YELLOW_LIGHT > 0):  # while the timer of current yellow signal is not zero
+        updateTimerValues()
+        time.sleep(1)
+    PRESENT_YELLOW = 0  # set yellow signal off
 
-    currentGreen = nextGreen  # set next signal as green signal
-    nextGreen = (currentGreen + 1) % noOfSignals  # set next green signal
-    signals[nextGreen].red = signals[currentGreen].yellow + signals[
-        currentGreen].green  # set the red time of next to next signal as (yellow time + green time) of next signal
-    repeat()
+    TRAFFIC_LIGHTS[PRESENT_GREEN].SIGNAL_YELLOW_LIGHT = DEFAULT_YELLOW_SIGNAL_TIME
 
-
-# Print the signal timers on cmd
-# def printStatus():
-#     for i in range(0, noOfSignals):
-#         if (i == currentGreen):
-#             if (currentYellow == 0):
-#                 print(" GREEN TS", i + 1, "-> r:", signals[i].red, " y:", signals[i].yellow, " g:", signals[i].green)
-#             else:
-#                 print("YELLOW TS", i + 1, "-> r:", signals[i].red, " y:", signals[i].yellow, " g:", signals[i].green)
-#         else:
-#             print("   RED TS", i + 1, "-> r:", signals[i].red, " y:", signals[i].yellow, " g:", signals[i].green)
-#     print()
-#
-def printStatus():
-    t=0
-    # for i in range(0, noOfSignals):
-    #     if (i == currentGreen):
-    #         if (currentYellow == 0):
-    #             print(" GREEN TS", i + 1, "-> r:", signals[i].red, " y:", signals[i].yellow, " g:", signals[i].green)
-    #         else:
-    #             print("YELLOW TS", i + 1, "-> r:", signals[i].red, " y:", signals[i].yellow, " g:", signals[i].green)
-    #     else:
-    #         print("   RED TS", i + 1, "-> r:", signals[i].red, " y:", signals[i].yellow, " g:", signals[i].green)
-    # print()
+    PRESENT_GREEN = UPCOMING_GREEN
+    recursor()
 
 
-# Update values of the signal timers after every second
-def updateValues():
-    for i in range(0, noOfSignals):
-        if (i == currentGreen):
-            if (currentYellow == 0):
-                signals[i].green -= 1
-                signals[i].totalGreenTime += 1
+
+def vehicleGenerator():
+    while (True):
+        temp= random.randint(0, 99)
+
+        if(temp < PROBABILITY_DISTRIBUTION_ARRAY_OF_VEHICLES[0]):
+            vehicle_Class=0
+
+        elif(temp<PROBABILITY_DISTRIBUTION_ARRAY_OF_VEHICLES[1]):
+            vehicle_Class=1
+
+        elif(temp< PROBABILITY_DISTRIBUTION_ARRAY_OF_VEHICLES[2]):
+            vehicle_Class=2
+
+        elif(temp< PROBABILITY_DISTRIBUTION_ARRAY_OF_VEHICLES[3]):
+            vehicle_Class=3
+
+        else:
+            vehicle_Class=4
+
+        g=0
+        g+=1
+
+
+        # PROBABILITY_DISTRIBUTION_ARRAY_OF_VEHICLES
+        if (vehicle_Class != 4):
+            ROUTE_LANE_number = random.randint(0, 1) + 1
+        else:
+            ROUTE_LANE_number = 0
+        is_Turning = 0
+        if (ROUTE_LANE_number == 2):
+            dummy = random.randint(0, 4)
+            if (dummy > 2):
+                is_Turning = 0
+            elif (dummy <= 2):
+                is_Turning = 1
+        dummy = random.randint(0, 99)
+        dir_index = 0
+
+        if (dummy < PROBABILITY_DISTRIBUTION_ARRAY_OF_LANES[0]):
+            dir_index = 0
+        elif (dummy < PROBABILITY_DISTRIBUTION_ARRAY_OF_LANES[1]):
+            dir_index = 1
+        elif (dummy < PROBABILITY_DISTRIBUTION_ARRAY_OF_LANES[2]):
+            dir_index = 2
+        elif (dummy < PROBABILITY_DISTRIBUTION_ARRAY_OF_LANES[3]):
+            dir_index = 3
+        INITIALIZE_VEH(ROUTE_LANE_number, TYPE_VEH[vehicle_Class], dir_index, PATH_TYPE[dir_index],
+                is_Turning)
+
+        timee = random.randint(4, 10)
+        aa = timee * 0.2
+        time.sleep(aa)
+
+# Updating the values of  signal timer at every second
+def updateTimerValues():
+    for signal_No in range(0, TOTAL_NO_OF_SIGNALS):
+        if (signal_No != PRESENT_GREEN):
+            TRAFFIC_LIGHTS[signal_No].SIGNAL_RED_LIGHT -= 1
+        else:
+            if (PRESENT_YELLOW != 0):
+                TRAFFIC_LIGHTS[signal_No].SIGNAL_YELLOW_LIGHT -= 1
             else:
-                signals[i].yellow -= 1
-        else:
-            signals[i].red -= 1
-
-
-# Generating vehicles in the simulation
-def generateVehicles():
-    #global total_ambulances1, total_ambulances2
-
+                TRAFFIC_LIGHTS[signal_No].SIGNAL_GREEN_LIGHT -= 1
+                TRAFFIC_LIGHTS[signal_No].totalGreenTime += 1
+def TIME_OF_SIMULATION():
+    global  TOTAL_AMBULANCES1, TOTAL_AMBULANCES2, TOTAL_AMBULANCES3, TOTAL_AMBULANCES4, ELAPSED_TIMER, SIMULATION_TIME
     while (True):
-        vehicle_type = random.randint(0, 4)
-        if (vehicle_type == 4):
-            lane_number = 0
-        else:
-            lane_number = random.randint(0, 1) + 1
-
-        temp = random.randint(0, 999)
-        direction_number = 0
-        a = [400, 800, 900, 1000]
-        if (temp < a[0]):
-            direction_number = 0
-        elif (temp < a[1]):
-            direction_number = 1
-        elif (temp < a[2]):
-            direction_number = 0
-        elif (temp < a[3]):
-            direction_number = 1
-        # Vehicle(lane_number, vehicleTypes[vehicle_type], direction_number, directionNumbers[direction_number],
-        #         will_turn)
-
-        # if(vehicle_type==3):
-        #     if(direction_number == 0):
-        #         total_ambulances1+=1
-        #     else:
-        #         total_ambulances2+=1
-
-        Vehicle(lane_number, vehicleTypes[vehicle_type], direction_number, directionNumbers[direction_number])
-
-        time.sleep(0.75)
-
-
-def simulationTime():
-    global timeElapsed, simTime, total_ambulances1, total_ambulances2
-    while (True):
-        timeElapsed += 1
+        ELAPSED_TIMER += 1
         time.sleep(1)
 
-        total_vehicles =0
-        if (timeElapsed == simTime):
-            lane1_vehicle_cnt = 0
-            lane2_vehicle_cnt = 0
-            for i in range(noOfSignals):
-                if(vehicles[directionNumbers[i]]['crossed'] >0):
-                    if(i==0):
-                        lane1.append(vehicles[directionNumbers[i]]['crossed'])
-                        ambulances_lane1.append(total_ambulances1)
-                        #total_ambulances1 = 0
+        total_vehicles = 0
+        if (SIMULATION_TIME == ELAPSED_TIMER):
+            ROUTE_LANE1_vehicle_cnt = 0
+            ROUTE_LANE2_vehicle_cnt = 0
+            ROUTE_LANE3_vehicle_cnt = 0
+            ROUTE_LANE4_vehicle_cnt = 0
+            for lane_No in range(TOTAL_NO_OF_SIGNALS):
+                if (LIST_VEH[PATH_TYPE[lane_No]]['HAS_PASSED'] > 0):
+                    if (lane_No == 0):
+                        ROUTE_LANE1.append(LIST_VEH[PATH_TYPE[lane_No]]['HAS_PASSED'])
+                        AMBULANCES_ROUTE_LANE1.append(TOTAL_AMBULANCES1)
+                    elif (lane_No == 1):
+                        ROUTE_LANE2.append(LIST_VEH[PATH_TYPE[lane_No]]['HAS_PASSED'])
+                        AMBULANCES_ROUTE_LANE2.append(TOTAL_AMBULANCES2)
+                    elif (lane_No == 2):
+                        ROUTE_LANE3.append(LIST_VEH[PATH_TYPE[lane_No]]['HAS_PASSED'])
+                        AMBULANCES_ROUTE_LANE3.append(TOTAL_AMBULANCES3)
                     else:
-                        lane2.append(vehicles[directionNumbers[i]]['crossed'])
-                        ambulances_lane2.append(total_ambulances2)
+                        ROUTE_LANE4.append(LIST_VEH[PATH_TYPE[lane_No]]['HAS_PASSED'])
+                        AMBULANCES_ROUTE_LANE4.append(TOTAL_AMBULANCES4)
 
-            #totalVehicles = 0
-            print('Lane-wise Vehicle Counts')
-            for i in lane1:
-                lane1_vehicle_cnt += i
+            print('ROUTE_LANE-wise Vehicle Counts')
+            for lane_Vehicle_Count in ROUTE_LANE1:
+                ROUTE_LANE1_vehicle_cnt += lane_Vehicle_Count
 
-            for i in lane2:
-                lane2_vehicle_cnt += i
+            for lane_Vehicle_Count in ROUTE_LANE2:
+                ROUTE_LANE2_vehicle_cnt += lane_Vehicle_Count
 
-            total_vehicles = lane1_vehicle_cnt + lane2_vehicle_cnt
-            #for i in range(noOfSignals):
-                # print('Lane', i + 1, ':', vehicles[directionNumbers[i]]['crossed'])
+            for lane_Vehicle_Count in ROUTE_LANE3:
+                ROUTE_LANE3_vehicle_cnt += lane_Vehicle_Count
 
-                #totalVehicles += vehicles[directionNumbers[i]]['crossed']
-            print('Vehicles passed in lane 1 :', lane1_vehicle_cnt)
-            print('Vehicles passed in lane 2 :', lane2_vehicle_cnt)
-            #print('No of Ambulance passed in Lane 1 :', noOfambulances)
+            for lane_Vehicle_Count in ROUTE_LANE4:
+                ROUTE_LANE4_vehicle_cnt += lane_Vehicle_Count
+
+            total_vehicles = ROUTE_LANE1_vehicle_cnt + ROUTE_LANE2_vehicle_cnt + ROUTE_LANE3_vehicle_cnt + ROUTE_LANE4_vehicle_cnt
+
+            print('Vehicles passed in ROUTE_LANE 1 :', ROUTE_LANE1_vehicle_cnt)
+            print('Vehicles passed in ROUTE_LANE 2 :', ROUTE_LANE2_vehicle_cnt)
+
+            print('Vehicles passed in ROUTE_LANE 3 :', ROUTE_LANE3_vehicle_cnt)
+            print('Vehicles passed in ROUTE_LANE 4 :', ROUTE_LANE4_vehicle_cnt)
+
+            #print('No of Ambulance passed in ROUTE_LANE 1 :', AMBULANCE_COUNT)
             print('Total vehicles passed: ', total_vehicles)
-            print('Total time passed: ', timeElapsed)
-            print('No. of vehicles passed per unit time: ', (float(total_vehicles) / float(timeElapsed)))
+            print('Total time passed: ', ELAPSED_TIMER)
+            print('No. of vehicles passed per unit time: ', (float(total_vehicles) / float(ELAPSED_TIMER)))
 
-            print('Lane 1 Vehicles Count')
-            print(lane1)
-            #print('   ')
-            # for element in lane1:
-            #     print(element)
+            print('ROUTE_LANE 1 Vehicles Count')
+            print(ROUTE_LANE1)
 
-            print('Lane 2 Vehicles Count')
-            print(lane2)
-            # for element in lane2:
-            #     print(element)
-            print('Lane 1 green time')
-            print(green_lane1)
+            print('ROUTE_LANE 2 Vehicles Count')
+            print(ROUTE_LANE2)
 
-            print('Lane2 green time')
-            print(green_lane2)
+            print('ROUTE_LANE 3 Vehicles Count')
+            print(ROUTE_LANE3)
 
+            print('ROUTE_LANE 4 Vehicles Count')
+            print(ROUTE_LANE4)
 
-            print('Ambulances passed in lane 1')
-            print(ambulances_lane1)
+            print('ROUTE_LANE 1 green time')
+            print(GREEN_ROUTE_LANE1)
 
-            print('Ambulances passed in lane 2')
-            print(ambulances_lane2)
+            print('ROUTE_LANE 2 green time')
+            print(GREEN_ROUTE_LANE2)
 
+            print('ROUTE_LANE 3 green time')
+            print(GREEN_ROUTE_LANE3)
 
+            print('ROUTE_LANE 4 green time')
+            print(GREEN_ROUTE_LANE4)
+
+            print('Ambulances passed in ROUTE_LANE 1')
+            print(AMBULANCES_ROUTE_LANE1)
+
+            print('Ambulances passed in ROUTE_LANE 2')
+            print(AMBULANCES_ROUTE_LANE2)
+
+            print('Ambulances passed in ROUTE_LANE 3')
+            print(AMBULANCES_ROUTE_LANE3)
+
+            print('Ambulances passed in ROUTE_LANE 4')
+            print(AMBULANCES_ROUTE_LANE4)
 
             os._exit(1)
 
 
 class Main:
-    global total_ambulances1, total_ambulances2
-    thread4 = threading.Thread(name="simulationTime", target=simulationTime, args=())
-    thread4.daemon = True
-    thread4.start()
+    global TOTAL_AMBULANCES1, TOTAL_AMBULANCES2, TOTAL_AMBULANCES3, TOTAL_AMBULANCES4
 
-    thread2 = threading.Thread(name="initialization", target=initialize, args=())  # initialization
-    thread2.daemon = True
-    thread2.start()
+    black_color = (0, 0, 0)
+    white_color = (255, 255, 255)
 
-    # Colours
-    black = (0, 0, 0)
-    white = (255, 255, 255)
+    t1 = threading.Thread(name="TIME_OF_SIMULATION", target=TIME_OF_SIMULATION, args=())
+    t2 = threading.Thread(name="initialization", target=trafficLightInitializer, args=())
+    t3 = threading.Thread(name="vehicleGenerator", target=vehicleGenerator, args=())
 
-    # Screensize
-    screenWidth = 1400
-    screenHeight = 700
-    screenSize = (screenWidth, screenHeight)
+    HEIGHT_OF_SCREEN = 750
+    WIDTH_OF_SCREEN = 1450
 
-    # Setting background image i.e. image of intersection
-    background = pygame.image.load('background2.png')
+    SIZE_OF_SCREEN = (WIDTH_OF_SCREEN, HEIGHT_OF_SCREEN)
 
-    screen = pygame.display.set_mode(screenSize)
+    t1.daemon = True
+    t2.daemon = True
+    t3.daemon = True
+
+    t1.start()
+    t2.start()
+    t3.start()
+
+
+    # Loading the image of intersection in the background
+    CROSS_SECTION_IMAGE = pygame.image.load('cross_section_image.png')
+
+    SIMULATION_WINDOW = pygame.display.set_mode(SIZE_OF_SCREEN)
     pygame.display.set_caption("SIMULATION")
 
-    # Loading signal images and font
-    # redSignal = pygame.image.load('images/signals/red.png')
-    redSignal = pygame.image.load('signals/red.png')
-    yellowSignal = pygame.image.load('signals/yellow.png')
-    greenSignal = pygame.image.load('signals/green.png')
-    font = pygame.font.Font(None, 30)
+    GREEN_LIGHT = pygame.image.load('TRAFFIC_LIGHTS/GREEN_LIGHT.png')
+    RED_LIGHT = pygame.image.load('TRAFFIC_LIGHTS/RED_LIGHT.png')
+    YELLOW_LIGHT = pygame.image.load('TRAFFIC_LIGHTS/YELLOW_LIGHT.png')
 
-    thread3 = threading.Thread(name="generateVehicles", target=generateVehicles, args=())  # Generating vehicles
-    thread3.daemon = True
-    thread3.start()
+    SIMULATION_STYLE = pygame.font.Font(None, 30)
 
     while True:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
+        for simulation_Event in pygame.event.get():
+            if simulation_Event.type == pygame.QUIT:
                 sys.exit()
 
-        screen.blit(background, (0, 0))  # display background in simulation
-        for i in range(0, noOfSignals):  # display signal and set timer according to current status: green, yello, or red
-            if (i == currentGreen):
-                if (currentYellow == 1):
-                #if (i==currentGreen):
-                    if (signals[i].yellow == 0):
-                        signals[i].signalText = "STOP"
+        SIMULATION_WINDOW.blit(CROSS_SECTION_IMAGE, (0, 0))  # IT IS USED FOR DISPLAYING SIMULATION BACKGROUND
+        for current_Signal in range(0, TOTAL_NO_OF_SIGNALS):
+            if (PRESENT_GREEN != current_Signal):
+                if (TRAFFIC_LIGHTS[current_Signal].SIGNAL_RED_LIGHT <= 10 and TRAFFIC_LIGHTS[current_Signal].SIGNAL_RED_LIGHT >= 0):
+                    if (TRAFFIC_LIGHTS[current_Signal].SIGNAL_RED_LIGHT == 0):
+                        TRAFFIC_LIGHTS[current_Signal].signalText = "GO"
                     else:
-                        signals[i].signalText = signals[i].yellow
-                    screen.blit(yellowSignal, signalCoods[i])
+                        TRAFFIC_LIGHTS[current_Signal].signalText = TRAFFIC_LIGHTS[current_Signal].SIGNAL_RED_LIGHT
+                elif (TRAFFIC_LIGHTS[current_Signal].SIGNAL_RED_LIGHT < 0):
+                    TRAFFIC_LIGHTS[current_Signal].signalText = "---"
+
                 else:
-                    if (signals[i].green == 0):
-                        signals[i].signalText = "SLOW"
-                    else:
-                        signals[i].signalText = signals[i].green
-                    screen.blit(greenSignal, signalCoods[i])
+                    TRAFFIC_LIGHTS[current_Signal].signalText = "---"
+                SIMULATION_WINDOW.blit(RED_LIGHT, COORDINATES_OF_SIGNAL[current_Signal])
+
             else:
-                if (signals[i].red <= 10):
-                    if (signals[i].red == 0):
-                        signals[i].signalText = "GO"
+                if (PRESENT_YELLOW != 1):
+                    if (TRAFFIC_LIGHTS[current_Signal].SIGNAL_GREEN_LIGHT != 0):
+                        TRAFFIC_LIGHTS[current_Signal].signalText = TRAFFIC_LIGHTS[current_Signal].SIGNAL_GREEN_LIGHT
                     else:
-                        signals[i].signalText = signals[i].red
+                        TRAFFIC_LIGHTS[current_Signal].signalText = "SLOW"
+                    SIMULATION_WINDOW.blit(GREEN_LIGHT, COORDINATES_OF_SIGNAL[current_Signal])
                 else:
-                    signals[i].signalText = "---"
-                screen.blit(redSignal, signalCoods[i])
+                    if (TRAFFIC_LIGHTS[current_Signal].SIGNAL_YELLOW_LIGHT != 0):
+                        TRAFFIC_LIGHTS[current_Signal].signalText = TRAFFIC_LIGHTS[current_Signal].SIGNAL_YELLOW_LIGHT
+                    else:
+                        TRAFFIC_LIGHTS[current_Signal].signalText = "STOP"
+                    SIMULATION_WINDOW.blit(YELLOW_LIGHT, COORDINATES_OF_SIGNAL[current_Signal])
+                #///////////
+
         signalTexts = ["", "", "", ""]
 
-        # display signal timer and vehicle count
-        for i in range(0, noOfSignals):
-            signalTexts[i] = font.render(str(signals[i].signalText), True, white, black)
-            screen.blit(signalTexts[i], signalTimerCoods[i])
+        # showing vehicle count and signal timer
 
-            if (i != currentGreen):
-                if(i == 0):
-                    if(vehicles[directionNumbers[i]]['crossed'] >0 ):
-                        lane1.append(vehicles[directionNumbers[i]]['crossed'])
-                        ambulances_lane1.append(total_ambulances1)
-                        #total_ambulances1=0
-                else :
-                    if (vehicles[directionNumbers[i]]['crossed'] > 0):
-                        lane2.append(vehicles[directionNumbers[i]]['crossed'])
-                        ambulances_lane2.append(total_ambulances2)
-                        #total_ambulances2=0
+        for signal_No in range(0, TOTAL_NO_OF_SIGNALS):
+            signalTexts[signal_No] = SIMULATION_STYLE.render(str(TRAFFIC_LIGHTS[signal_No].signalText), True, white_color, black_color)
+            SIMULATION_WINDOW.blit(signalTexts[signal_No], COORDINATES_OF_SIGNAL_TIMER[signal_No])
+
+            if (signal_No != PRESENT_GREEN):
+                if (signal_No == 0):
+                    if (LIST_VEH[PATH_TYPE[signal_No]]['HAS_PASSED'] > 0):
+                        ROUTE_LANE1.append(LIST_VEH[PATH_TYPE[signal_No]]['HAS_PASSED'])
+                        AMBULANCES_ROUTE_LANE1.append(TOTAL_AMBULANCES1)
+
+                elif (signal_No == 1):
+                    if (LIST_VEH[PATH_TYPE[signal_No]]['HAS_PASSED'] > 0):
+                        ROUTE_LANE2.append(LIST_VEH[PATH_TYPE[signal_No]]['HAS_PASSED'])
+                        AMBULANCES_ROUTE_LANE2.append(TOTAL_AMBULANCES2)
+
+
+                elif (signal_No == 2):
+                    if (LIST_VEH[PATH_TYPE[signal_No]]['HAS_PASSED'] > 0):
+                        ROUTE_LANE3.append(LIST_VEH[PATH_TYPE[signal_No]]['HAS_PASSED'])
+                        AMBULANCES_ROUTE_LANE3.append(TOTAL_AMBULANCES3)
+
+                else:
+                    if (LIST_VEH[PATH_TYPE[signal_No]]['HAS_PASSED'] > 0):
+                        ROUTE_LANE4.append(LIST_VEH[PATH_TYPE[signal_No]]['HAS_PASSED'])
+                        AMBULANCES_ROUTE_LANE4.append(TOTAL_AMBULANCES4)
+
 
                 #-------------------------------------------------------------------------
-                totalVehicles += vehicles[directionNumbers[i]]['crossed']
-                vehicles[directionNumbers[i]]['crossed'] = 0
-                if(i==0):
-                    total_ambulances1=0
+                VEHICLE_COUNT += LIST_VEH[PATH_TYPE[signal_No]]['HAS_PASSED']
+                LIST_VEH[PATH_TYPE[signal_No]]['HAS_PASSED'] = 0
+                if (signal_No == 0):
+                    TOTAL_AMBULANCES1 = 0
+                elif (signal_No == 1):
+                    TOTAL_AMBULANCES2 = 0
+                elif (signal_No == 2):
+                    TOTAL_AMBULANCES3 = 0
                 else:
-                    total_ambulances2=0
+                    TOTAL_AMBULANCES4 = 0
 
-            displayText = vehicles[directionNumbers[i]]['crossed']
+            print_Text = LIST_VEH[PATH_TYPE[signal_No]]['HAS_PASSED']
 
-            vehicleCountTexts[i] = font.render(str(displayText), True, black, white)
-            screen.blit(vehicleCountTexts[i], vehicleCountCoods[i])
+            VEHICLE_COUNT_TEXTS[signal_No] = SIMULATION_STYLE.render(str(print_Text), True, black_color, white_color)
+            SIMULATION_WINDOW.blit(VEHICLE_COUNT_TEXTS[signal_No], COORDINATES_OF_VEHICLE_COUNT[signal_No])
 
-        timeElapsedText = font.render(("Time Elapsed: " + str(timeElapsed)), True, black, white)
-        screen.blit(timeElapsedText, (1100, 50))
+        ELAPSED_TIMERText = SIMULATION_STYLE.render(("Time Elapsed: " + str(ELAPSED_TIMER)), True, black_color, white_color)
+        SIMULATION_WINDOW.blit(ELAPSED_TIMERText, (1100, 50))
 
         # display the vehicles
-        for vehicle in simulation:
-            screen.blit(vehicle.currentImage, [vehicle.x, vehicle.y])
-            # vehicle.render(screen)
-            vehicle.move()
+        for VEH in TRAFFIC_OBJECTS:
+            SIMULATION_WINDOW.blit(VEH.VEH_CURR_IMG, [VEH.X_COORDINATE, VEH.Y_COORDINATE])
+            VEH.vehicleMovement()
         pygame.display.update()
 
 
-
 Main()
-
-
